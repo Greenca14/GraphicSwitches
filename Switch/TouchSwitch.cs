@@ -1,87 +1,142 @@
 ﻿using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 
 namespace Switch
 {
-    public class TouchSwitch : StackLayout
+    public class TouchSwitch : ContentView
     {
-        private readonly Slider _slider;
-        private readonly Label _label;
-        private readonly BoxView _indicator;
-        private readonly Frame _indicatorFrame;
+        private readonly Label _valueLabel;
+        private readonly BoxView _roundIndicator;
+        private readonly Frame _sliderFrame;
+        private readonly BoxView _track;
+        private double _value = 0; // 0..100
+        private double _startValue = 0; // Для сохранения позиции при начале жеста
 
         public TouchSwitch()
         {
-            _slider = new Slider
-            {
-                Minimum = 0,
-                Maximum = 100,
-                Value = 0,
-                HorizontalOptions = LayoutOptions.FillAndExpand,
-                ThumbColor = Colors.Blue,
-                MinimumTrackColor = Colors.LightBlue,
-                MaximumTrackColor = Colors.LightGray
-            };
-
-            _label = new Label
+            // Цифровое отображение значения
+            _valueLabel = new Label
             {
                 Text = "0",
+                FontSize = 18,
+                FontAttributes = FontAttributes.Bold,
                 HorizontalOptions = LayoutOptions.Center,
-                FontSize = 20,
-                FontAttributes = FontAttributes.Bold
+                TextColor = Colors.White,
+                Margin = new Thickness(0, 0, 0, 5)
             };
 
-            _indicator = new BoxView
+            // Трек слайдера (фон полосы)
+            _track = new BoxView
+            {
+                Color = Colors.Gray,
+                HeightRequest = 2,
+                WidthRequest = 120,
+                HorizontalOptions = LayoutOptions.FillAndExpand,
+                VerticalOptions = LayoutOptions.Center
+            };
+
+            // Круглый индикатор (статичный)
+            _roundIndicator = new BoxView
             {
                 Color = Colors.LightGray,
-                WidthRequest = 30,
-                HeightRequest = 30,
-                CornerRadius = 15,
-                HorizontalOptions = LayoutOptions.Center
+                CornerRadius = 100,
+                WidthRequest = 40,
+                HeightRequest = 40,
+                VerticalOptions = LayoutOptions.End,
+                HorizontalOptions = LayoutOptions.Center,
+                Margin = new Thickness(0, 15, 0, 0)
             };
 
-            _indicatorFrame = new Frame
+            // Основной контейнер
+            _sliderFrame = new Frame
             {
-                Content = _indicator,
-                Padding = 0,
-                HasShadow = false,
-                CornerRadius = 20,
-                BorderColor = Colors.Gray,
+                Content = new VerticalStackLayout
+                {
+                    Spacing = 0,
+                    Children =
+                    {
+                        _valueLabel,
+                        new Frame
+                        {
+                            Content = new Grid
+                            {
+                                HeightRequest = 25,
+                                Padding = new Thickness(20, 10),
+                                Children = { _track }
+                            },
+                            CornerRadius = 8,
+                            BorderColor = Colors.Gray,
+                            BackgroundColor = Colors.LightGray,
+                            HasShadow = true
+                        },
+                        _roundIndicator
+                    }
+                },
                 BackgroundColor = Colors.Transparent,
-                HorizontalOptions = LayoutOptions.Center
+                Padding = 15
             };
 
-            _slider.ValueChanged += OnSliderValueChanged;
+            // Обработка жестов
+            var panGesture = new PanGestureRecognizer();
+            panGesture.PanUpdated += OnPanUpdated;
 
-            Children.Add(_label);
-            Children.Add(_slider);
-            Children.Add(_indicatorFrame);
+            var tapGesture = new TapGestureRecognizer();
+            tapGesture.Tapped += OnTapped;
 
-            UpdateIndicator(0);
+            _sliderFrame.GestureRecognizers.Add(panGesture);
+            _sliderFrame.GestureRecognizers.Add(tapGesture);
+
+            Content = _sliderFrame;
         }
 
-        private void OnSliderValueChanged(object sender, ValueChangedEventArgs e)
+        private void OnPanUpdated(object sender, PanUpdatedEventArgs e)
         {
-            int value = (int)e.NewValue;
-            _label.Text = value.ToString();
-            UpdateIndicator(value);
+            var frame = (Frame)sender;
+            var width = frame.Width - 40;
+
+            if (width <= 0) return;
+
+            switch (e.StatusType)
+            {
+                case GestureStatus.Started:
+                    _startValue = _value; // Запоминаем текущее значение
+                    break;
+
+                case GestureStatus.Running:
+                    // Вычисляем изменение относительно начальной позиции
+                    double delta = e.TotalX / width * 100;
+                    _value = Math.Clamp(_startValue + delta, 0, 100);
+
+                    _valueLabel.Text = ((int)_value).ToString();
+                    UpdateIndicatorColor((int)_value);
+                    break;
+            }
         }
 
-        private void UpdateIndicator(int value)
+        private void OnTapped(object sender, TappedEventArgs e)
         {
-            // Изменяем цвет и размер индикатора в зависимости от значения
-            double intensity = value / 100f;
+            if (e.GetPosition(_sliderFrame) is Point position)
+            {
+                var width = _sliderFrame.Width - 40;
+                if (width <= 0) return;
 
-            _indicator.Color = Color.FromRgb(
-                (int)(255 * intensity),
-                (int)(255 * intensity),
-                0);
+                // Вычисляем новое значение на основе позиции тапа
+                double newValue = position.X / width * 100;
+                _value = Math.Clamp(newValue, 0, 100);
 
-            _indicator.Scale = 0.8 + (intensity * 0.4);
+                _valueLabel.Text = ((int)_value).ToString();
+                UpdateIndicatorColor((int)_value);
+            }
+        }
 
-            // Анимация при изменении
-            _indicatorFrame.RotateTo(5, 50, Easing.Linear)
-                .ContinueWith(_ => _indicatorFrame.RotateTo(-5, 50, Easing.Linear))
-                .ContinueWith(_ => _indicatorFrame.RotateTo(0, 50, Easing.Linear));
+        private void UpdateIndicatorColor(int value)
+        {
+            double percent = value / 100.0;
+            _roundIndicator.Color = Color.FromRgb(
+                (int)(211 + (44 * percent)),
+                (int)(211 + (44 * percent)),
+                (int)(211 - (211 * percent))
+            );
         }
     }
 }

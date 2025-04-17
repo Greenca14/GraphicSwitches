@@ -1,15 +1,11 @@
-﻿using Microsoft.Maui.Controls;
-using Microsoft.Maui.Graphics;
-
-namespace Switch
+﻿namespace Switch
 {
     public class RotarySwitch : GraphicsView
     {
         private float _angle;
+        private float _initialTouchAngleOffset;
         private bool _isLocked;
-        private float _minAngle = -90f;
-        private float _maxAngle = 90f;
-        private float _currentValue;
+        private bool _isDragging;
 
         public RotarySwitch()
         {
@@ -17,34 +13,8 @@ namespace Switch
             StartInteraction += OnStartInteraction;
             DragInteraction += OnDragInteraction;
             EndInteraction += OnEndInteraction;
-        }
 
-        public float MinAngle
-        {
-            get => _minAngle;
-            set { _minAngle = value; Invalidate(); }
         }
-
-        public float MaxAngle
-        {
-            get => _maxAngle;
-            set { _maxAngle = value; Invalidate(); }
-        }
-
-        public float CurrentValue
-        {
-            get => _currentValue;
-            private set
-            {
-                if (_currentValue != value)
-                {
-                    _currentValue = value;
-                    ValueChanged?.Invoke(this, value);
-                }
-            }
-        }
-
-        public event EventHandler<float> ValueChanged;
 
         private void OnStartInteraction(object sender, TouchEventArgs e)
         {
@@ -55,38 +25,44 @@ namespace Switch
             {
                 _isLocked = !_isLocked;
                 Invalidate();
+                return;
+            }
+
+            if (!_isLocked)
+            {
+                _isDragging = true;
+                _initialTouchAngleOffset = GetAngle(center, touchPoint) - _angle;
             }
         }
 
         private void OnDragInteraction(object sender, TouchEventArgs e)
         {
-            if (_isLocked) return;
+            if (_isLocked || !_isDragging) return;
 
             var center = new Point(Width / 2, Height / 2);
             var touchPoint = e.Touches[0];
 
-            var deltaX = touchPoint.X - center.X;
-            var deltaY = touchPoint.Y - center.Y;
-            var newAngle = (float)(Math.Atan2(deltaY, deltaX) * 180 / Math.PI);
+            float newAngle = GetAngle(center, touchPoint) - _initialTouchAngleOffset;
+            _angle = newAngle;
 
-            // Безопасное ограничение угла
-            try
-            {
-                _angle = Math.Clamp(newAngle, MinAngle, MaxAngle);
-                CurrentValue = (_angle - MinAngle) / (MaxAngle - MinAngle) * 100f;
-                Invalidate();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Angle calculation error: {ex.Message}");
-                // Восстановление предыдущего значения при ошибке
-                _angle = Math.Clamp(_angle, MinAngle, MaxAngle);
-            }
+            Invalidate();
         }
 
         private void OnEndInteraction(object sender, TouchEventArgs e)
         {
-            // Дополнительная логика при завершении
+            _isDragging = false;
+        }
+
+        private void OnInertiaTick(object sender, EventArgs e)
+        {
+            Invalidate();
+        }
+
+        private float GetAngle(Point center, Point touch)
+        {
+            double deltaX = touch.X - center.X;
+            double deltaY = touch.Y - center.Y;
+            return (float)(Math.Atan2(deltaY, deltaX) * 180 / Math.PI);
         }
 
         private bool IsPointInCenterCircle(Point point, Point center, double radius = 20)
@@ -97,8 +73,6 @@ namespace Switch
         private class RotarySwitchDrawable : IDrawable
         {
             private readonly RotarySwitch _switch;
-            private const float LampHeight = 40f;
-            private const float LampWidth = 80f;
 
             public RotarySwitchDrawable(RotarySwitch rotarySwitch)
             {
@@ -107,78 +81,52 @@ namespace Switch
 
             public void Draw(ICanvas canvas, RectF dirtyRect)
             {
-                var center = new PointF(dirtyRect.Width / 2, dirtyRect.Height / 2 - LampHeight / 2);
-                var radius = Math.Min(dirtyRect.Width, dirtyRect.Height - LampHeight) / 2 - 15;
+                var center = new PointF(dirtyRect.Width / 2, dirtyRect.Height / 2);
+                var radius = Math.Min(dirtyRect.Width, dirtyRect.Height) / 2 - 20;
 
-                // Фон
-                canvas.FillColor = Color.FromArgb("#f5f5f5");
+                // 🔲 Фон
+                canvas.FillColor = Colors.White.WithAlpha(0.9f);
+                canvas.FillRoundedRectangle(dirtyRect, 20);
+
+                canvas.FillColor = Colors.Silver;
                 canvas.FillCircle(center, (float)radius);
 
-                // Шкала
-                canvas.StrokeColor = Colors.Black;
-                canvas.StrokeSize = 2;
-                canvas.DrawCircle(center, (float)radius);
+                // 🕒 Отметки по кругу
+                int divisions = 50;
+                for (int i = 0; i < divisions; i++)
+                {
+                    float angle = i * 360f / divisions;
+                    float rad = angle * (float)Math.PI / 180f;
+                    float x1 = center.X + (float)(Math.Cos(rad) * (radius - 10));
+                    float y1 = center.Y + (float)(Math.Sin(rad) * (radius - 10));
+                    float x2 = center.X + (float)(Math.Cos(rad) * (radius - 2));
+                    float y2 = center.Y + (float)(Math.Sin(rad) * (radius - 2));
+                    canvas.StrokeColor = Colors.White;
+                    canvas.StrokeSize = 2;
+                    canvas.DrawLine(x1, y1, x2, y2);
+                }
 
-                // Ограничительные метки
-                DrawLimitMarker(canvas, center, radius, _switch.MinAngle);
-                DrawLimitMarker(canvas, center, radius, _switch.MaxAngle);
-
-                // Указатель
+                // 🔻 Указатель
                 canvas.SaveState();
                 canvas.Rotate(_switch._angle, center.X, center.Y);
-                canvas.StrokeColor = Colors.Black;
-                canvas.StrokeSize = 3;
-                canvas.DrawLine(center.X, center.Y, center.X, center.Y - radius);
+                canvas.StrokeColor = Colors.OrangeRed;
+                canvas.StrokeSize = 5;
+                canvas.DrawLine(center.X, center.Y, center.X, center.Y - radius + 15);
                 canvas.RestoreState();
 
-                // Центральная кнопка фиксации
-                canvas.FillColor = _switch._isLocked ? Colors.Red : Colors.Gray;
-                canvas.FillCircle(center, 20);
+                // ⭕ Центральная кнопка
+                var centerColor = _switch._isLocked ? Colors.Gray : Colors.DarkGray;
+                canvas.FillColor = centerColor;
+                canvas.FillCircle(center, 22);
 
-                // Лампочка под переключателем
-                DrawValueIndicator(canvas, dirtyRect);
-            }
+                // 💡 Светодиодный индикатор
+                canvas.FillColor = _switch._isLocked ? Colors.Red : Colors.LimeGreen;
+                canvas.FillCircle(new PointF(center.X + radius / 1.2f, center.Y - radius / 1.2f), 6);
 
-            private void DrawLimitMarker(ICanvas canvas, PointF center, double radius, float angle)
-            {
-                var point = GetPointOnCircle(center, radius, angle);
-                canvas.FillColor = Colors.Red;
-                canvas.FillCircle(point, 5);
-            }
-
-            private void DrawValueIndicator(ICanvas canvas, RectF dirtyRect)
-            {
-                var lampX = dirtyRect.Width / 2 - LampWidth / 2;
-                var lampY = dirtyRect.Height - LampHeight - 5;
-
-                // Градиент от черного (0%) к желтому (100%)
-                var intensity = _switch.CurrentValue / 100f;
-                var lampColor = Color.FromRgb(
-                    (int)(255 * intensity),    // R
-                    (int)(255 * intensity),   // G
-                    0);                       // B (0 для желтого)
-
-                // Основание лампочки
-                canvas.FillColor = Colors.Gray;
-                canvas.FillRoundedRectangle(lampX, lampY, LampWidth, LampHeight, 5);
-
-                // "Стекло" лампочки
-                canvas.FillColor = lampColor.WithAlpha(0.7f);
-                canvas.FillRoundedRectangle(
-                    lampX + 1,
-                    lampY + 1,
-                    LampWidth - 2,
-                    LampHeight - 2,
-                    3);
-
-            }
-
-            private PointF GetPointOnCircle(PointF center, double radius, float angle)
-            {
-                var radians = angle * Math.PI / 180;
-                return new PointF(
-                    (float)(center.X + radius * Math.Sin(radians)),
-                    (float)(center.Y + radius * Math.Cos(radians)));
+                // 💎 Блик
+                canvas.StrokeColor = Colors.White.WithAlpha(0.3f);
+                canvas.StrokeSize = 2;
+                canvas.DrawLine(center.X - 12, center.Y - 12, center.X + 12, center.Y + 12);
             }
         }
     }
