@@ -9,45 +9,45 @@ namespace Switch
         private readonly BoxView _roundIndicator;
         private readonly Frame _sliderFrame;
         private readonly BoxView _track;
-        private double _value = 0; // 0..100
-        private double _startValue = 0; // Для сохранения позиции при начале жеста
+        private double _value = 0;
+        private double _startValue = 0; // сохранениe позиции при начале жеста
 
         public TouchSwitch()
         {
-            // Цифровое отображение значения
+            // цифровое значения
             _valueLabel = new Label
             {
                 Text = "0",
-                FontSize = 18,
+                FontSize = 24,
                 FontAttributes = FontAttributes.Bold,
                 HorizontalOptions = LayoutOptions.Center,
                 TextColor = Colors.White,
                 Margin = new Thickness(0, 0, 0, 5)
             };
 
-            // Трек слайдера (фон полосы)
+            // трек слайдера
             _track = new BoxView
             {
                 Color = Colors.Gray,
                 HeightRequest = 2,
-                WidthRequest = 120,
+                WidthRequest = 210,
                 HorizontalOptions = LayoutOptions.FillAndExpand,
                 VerticalOptions = LayoutOptions.Center
             };
 
-            // Круглый индикатор (статичный)
+            // круглый индикатор 
             _roundIndicator = new BoxView
             {
                 Color = Colors.LightGray,
                 CornerRadius = 100,
-                WidthRequest = 40,
-                HeightRequest = 40,
+                WidthRequest = 60,
+                HeightRequest = 60,
                 VerticalOptions = LayoutOptions.End,
                 HorizontalOptions = LayoutOptions.Center,
                 Margin = new Thickness(0, 15, 0, 0)
             };
 
-            // Основной контейнер
+            // основной контейнер
             _sliderFrame = new Frame
             {
                 Content = new VerticalStackLayout
@@ -60,7 +60,7 @@ namespace Switch
                         {
                             Content = new Grid
                             {
-                                HeightRequest = 25,
+                                HeightRequest = 40,
                                 Padding = new Thickness(20, 10),
                                 Children = { _track }
                             },
@@ -76,7 +76,7 @@ namespace Switch
                 Padding = 15
             };
 
-            // Обработка жестов
+            // обработка жестов
             var panGesture = new PanGestureRecognizer();
             panGesture.PanUpdated += OnPanUpdated;
 
@@ -99,11 +99,10 @@ namespace Switch
             switch (e.StatusType)
             {
                 case GestureStatus.Started:
-                    _startValue = _value; // Запоминаем текущее значение
+                    _startValue = _value; 
                     break;
 
-                case GestureStatus.Running:
-                    // Вычисляем изменение относительно начальной позиции
+                case GestureStatus.Running:                  
                     double delta = e.TotalX / width * 100;
                     _value = Math.Clamp(_startValue + delta, 0, 100);
 
@@ -120,7 +119,6 @@ namespace Switch
                 var width = _sliderFrame.Width - 40;
                 if (width <= 0) return;
 
-                // Вычисляем новое значение на основе позиции тапа
                 double newValue = position.X / width * 100;
                 _value = Math.Clamp(newValue, 0, 100);
 
@@ -128,7 +126,8 @@ namespace Switch
                 UpdateIndicatorColor((int)_value);
             }
         }
-
+        
+        // цвет кружочка серый -> желтый
         private void UpdateIndicatorColor(int value)
         {
             double percent = value / 100.0;

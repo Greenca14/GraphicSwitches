@@ -117,7 +117,7 @@
                 // ⭕ Центральная кнопка
                 var centerColor = _switch._isLocked ? Colors.Gray : Colors.DarkGray;
                 canvas.FillColor = centerColor;
-                canvas.FillCircle(center, 22);
+                canvas.FillCircle(center, 30);
 
                 // 💡 Светодиодный индикатор
                 canvas.FillColor = _switch._isLocked ? Colors.Red : Colors.LimeGreen;
