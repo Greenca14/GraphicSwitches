@@ -80,11 +80,7 @@ namespace Switch
             var panGesture = new PanGestureRecognizer();
             panGesture.PanUpdated += OnPanUpdated;
 
-            var tapGesture = new TapGestureRecognizer();
-            tapGesture.Tapped += OnTapped;
-
             _sliderFrame.GestureRecognizers.Add(panGesture);
-            _sliderFrame.GestureRecognizers.Add(tapGesture);
 
             Content = _sliderFrame;
         }
@@ -111,22 +107,7 @@ namespace Switch
                     break;
             }
         }
-
-        private void OnTapped(object sender, TappedEventArgs e)
-        {
-            if (e.GetPosition(_sliderFrame) is Point position)
-            {
-                var width = _sliderFrame.Width - 40;
-                if (width <= 0) return;
-
-                double newValue = position.X / width * 100;
-                _value = Math.Clamp(newValue, 0, 100);
-
-                _valueLabel.Text = ((int)_value).ToString();
-                UpdateIndicatorColor((int)_value);
-            }
-        }
-        
+ 
         // цвет кружочка серый -> желтый
         private void UpdateIndicatorColor(int value)
         {

@@ -9,7 +9,7 @@ namespace Switch
         private bool _isOn;
         private float _leverPosition; // позиция рычага (0-1)
         private DateTime _lastUpdate;
-        private const float AnimationDuration = 0.2f; // Длительность анимации в секундах
+        private const float AnimationDuration = 0.2f; // длительность анимации в секундах
 
         public BinarySwitch()
         {
@@ -21,7 +21,6 @@ namespace Switch
                 _lastUpdate = DateTime.Now;
                 this.Invalidate();
 
-                // анимация через Dispatcher
                 this.Dispatcher.StartTimer(TimeSpan.FromMilliseconds(16), () =>
                 {
                     var elapsed = (float)(DateTime.Now - _lastUpdate).TotalSeconds;
@@ -60,7 +59,7 @@ namespace Switch
                 var switchRect = new RectF(dirtyRect.X + 20, dirtyRect.Y + 20, dirtyRect.Width - 40, dirtyRect.Height - 40);
 
                 var offColor = Colors.DarkGray;
-                var onColor = Colors.LimeGreen;
+                var onColor = Colors.Gray;
                 var currentColor = Color.FromRgb(
                     offColor.Red + (onColor.Red - offColor.Red) * _toggle._leverPosition,
                     offColor.Green + (onColor.Green - offColor.Green) * _toggle._leverPosition,

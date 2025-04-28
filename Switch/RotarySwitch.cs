@@ -53,11 +53,6 @@
             _isDragging = false;
         }
 
-        private void OnInertiaTick(object sender, EventArgs e)
-        {
-            Invalidate();
-        }
-
         private float GetAngle(Point center, Point touch)
         {
             double deltaX = touch.X - center.X;
